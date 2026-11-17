@@ -12,7 +12,7 @@ Hệ thống được tổ chức thành một Solution (`CatalogApi.slnx`) ch�
 1. **`Catalog.Api` (Máy chủ):** Ứng dụng ASP.NET Core Empty lắng nghe yêu cầu HTTP trên cổng `5100`.
 2. **`Catalog.Client` (Máy khách):** Ứng dụng Console đóng vai trò tiến trình độc lập, giao tiếp với máy chủ hoàn toàn qua giao thức HTTP/REST.
 
-![Minh chứng cấu trúc thư mục và build thành công](images/01-cau-truc.png)
+
 
 ---
 
@@ -34,7 +34,7 @@ Dữ liệu được lưu trữ tạm thời trong bộ nhớ RAM (`List<Product
 | 8 | Tạo sản phẩm vi phạm nghiệp vụ | `POST /api/products` (`sp-sai.json`) | `400 Bad Request` | Handler kiểm tra biên phát hiện giá âm/tên rỗng, trả về `INVALID_PRODUCT`. |
 | 9 | Gửi thiếu header định dạng | `POST /api/products` *(thiếu Content-Type)* | `415 Unsupported Media Type` | Framework từ chối đọc body vì không xác định được định dạng JSON. |
 
-![Minh chứng kết quả chạy curl](images/02-curl-test.png)
+
 
 ---
 
@@ -42,7 +42,6 @@ Dữ liệu được lưu trữ tạm thời trong bộ nhớ RAM (`List<Product
 
 Toàn bộ 8 kịch bản kiểm thử được gom vào tệp `requests.http` đặt tại thư mục gốc `CatalogApi` sử dụng biến môi trường `@api = http://localhost:5100`. Tất cả các ca đều trả về đúng mã trạng thái mong đợi.
 
-![Minh chứng chạy 8 ca test trong requests.http](images/03-requests-http.png)
 
 ---
 
@@ -56,7 +55,6 @@ Khi chạy đồng thời cả hai tiến trình, máy khách thực hiện tu�
 3. **Nấc 3:** Gọi `GET /api/products/1` đọc lại chi tiết sản phẩm đầu tiên.
 4. **Nấc 4:** Cố tình gửi dữ liệu sai (`CreateProductRequest("", "", -1)`), bắt mã `400 BadRequest` và in thông báo lỗi `INVALID_PRODUCT` an toàn mà không sập chương trình.
 
-![Minh chứng chạy Catalog.Client đủ 4 nấc](images/04-client-4-nac.png)
 
 ---
 
@@ -69,7 +67,7 @@ Khi chạy đồng thời cả hai tiến trình, máy khách thực hiện tu�
 | **3** | Khởi động lại máy chủ và chạy máy khách | Danh sách quay trở lại **chỉ còn 3 sản phẩm** mặc định ban đầu (các sản phẩm 4, 5 đã biến mất). | Dữ liệu lưu tạm trong bộ nhớ RAM sẽ mất sạch khi tiến trình máy chủ dừng. |
 | **4** | Chạy máy khách trỏ sang cổng sai (`http://localhost:5999`) | Máy khách báo lỗi từ chối kết nối tại cổng không tồn tại (`Connection refused (localhost:5999)`). | Hai bên phải thống nhất chính xác địa chỉ URL và cổng kết nối. |
 
-![Minh chứng kết quả 4 thí nghiệm Bước 9](images/05-thi-nghiem-9.png)
+
 
 ---
 
@@ -78,7 +76,7 @@ Khi chạy đồng thời cả hai tiến trình, máy khách thực hiện tu�
 ### 1. Lịch sử Git
 Mã nguồn được quản lý bằng Git với tệp `.gitignore` loại bỏ hoàn toàn các thư mục biên dịch tạm (`bin/`, `obj/`).
 
-![Minh chứng lịch sử git log và git status](images/06-git-log.png)
+
 
 ### 2. Bảng tự đánh giá kết quả thực hành
 
@@ -97,100 +95,3 @@ Mã nguồn được quản lý bằng Git với tệp `.gitignore` loại bỏ 
 
 ---
 
-## Phụ lục: Mã nguồn hoàn chỉnh
-
-### Phụ lục A: `src/Catalog.Api/Program.cs`
-
-```csharp
-var builder = WebApplication.CreateBuilder(args);
-var app = builder.Build();
-
-var products = new List<ProductDto>
-{
-    new(1, "Giao trinh Lap trinh phan tan", "Giao trinh chinh thuc", 150000),
-    new(2, "Tai lieu RESTful API", "Huong dan thiet ke API", 90000),
-    new(3, "Bai tap thuc hanh .NET", "Bo bai tap kem loi giai", 120000)
-};
-
-app.MapGet("/", () => Results.Ok(new
-{
-    service = "Catalog.Api",
-    status = "running"
-}));
-
-app.MapGet("/api/products", () => Results.Ok(products));
-
-app.MapGet("/api/products/{id:int}", (int id) =>
-{
-    var product = products.FirstOrDefault(p => p.Id == id);
-    return product is null
-        ? Results.NotFound(new ApiError("PRODUCT_NOT_FOUND", "Khong tim thay san pham."))
-        : Results.Ok(product);
-});
-
-app.MapPost("/api/products", (CreateProductRequest request) =>
-{
-    if (string.IsNullOrWhiteSpace(request.Name) || request.Price <= 0)
-    {
-        return Results.BadRequest(new ApiError(
-            "INVALID_PRODUCT",
-            "Ten san pham khong duoc de trong va gia phai lon hon 0."));
-    }
-
-    var product = new ProductDto(
-        Id: products.Max(p => p.Id) + 1,
-        Name: request.Name.Trim(),
-        Description: request.Description?.Trim() ?? "",
-        Price: request.Price);
-
-    products.Add(product);
-    return Results.Created($"/api/products/{product.Id}", product);
-});
-
-app.Run();
-
-record ProductDto(int Id, string Name, string Description, decimal Price);
-record CreateProductRequest(string Name, string? Description, decimal Price);
-record ApiError(string Code, string Message);
-using System.Net;
-using System.Net.Http.Json;
-
-var apiBaseUrl = args.Length > 0 ? args[0] : "http://localhost:5100";
-using var http = new HttpClient {
-    BaseAddress = new Uri(apiBaseUrl)
-};
-
-var products = await http.GetFromJsonAsync<List<ProductDto>>("/api/products");
-Console.WriteLine("Danh sach san pham:");
-foreach (var p in products ?? []) {
-    Console.WriteLine($" [{p.Id}] {p.Name} -{p.Price:N0} VND");
-}
-
-var createRequest = new CreateProductRequest(
-    "Nhap mon REST API", "Sach tham khao", 120000);
-
-var createResponse = await http.PostAsJsonAsync("/api/products", createRequest);
-
-if (createResponse.StatusCode == HttpStatusCode.Created) {
-    var created = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
-    Console.WriteLine($"\nDa tao san pham moi: [{created?.Id}] {created?.Name}");
-    Console.WriteLine($"Doc lai tai: {createResponse.Headers.Location}");
-} else {
-    var error = await createResponse.Content.ReadFromJsonAsync<ApiError>();
-    Console.WriteLine($"\nLoi: {error?.Code} - {error?.Message}");
-    return;
-}
-
-var detail = await http.GetFromJsonAsync<ProductDto>("/api/products/1");
-Console.WriteLine($"\nChi tiet san pham 1: {detail?.Name}");
-
-var invalidResponse = await http.PostAsJsonAsync("/api/products",
-    new CreateProductRequest("", "", -1));
-
-Console.WriteLine($"\nThu gui du lieu sai: {(int)invalidResponse.StatusCode} {invalidResponse.StatusCode}");
-var invalidError = await invalidResponse.Content.ReadFromJsonAsync<ApiError>();
-Console.WriteLine($"{invalidError?.Code}: {invalidError?.Message}");
-
-record ProductDto(int Id, string Name, string Description, decimal Price);
-record CreateProductRequest(string Name, string? Description, decimal Price);
-record ApiError(string Code, string Message);

@@ -15,10 +15,10 @@ var products = new List<ProductDto>
     new(3, "Bai tap thanc hanh .NET", "Bo bai tap kem loi giai", 120000)
 };
 
-// 3. Endpoint lấy danh sách sản phẩm
+
 app.MapGet("/api/products", () => Results.Ok(products));
 
-// 4. Endpoint lấy chi tiết một sản phẩm theo ID
+
 app.MapGet("/api/products/{id:int}", (int id) => {
     var product = products.FirstOrDefault(p => p.Id == id);
     return product is null 
@@ -26,7 +26,7 @@ app.MapGet("/api/products/{id:int}", (int id) => {
         : Results.Ok(product);
 });
 
-// 5. Endpoint tạo mới sản phẩm từ body JSON
+
 app.MapPost("/api/products", (CreateProductRequest request) => {
     // Kiểm tra tại biên hệ thống
     if (string.IsNullOrWhiteSpace(request.Name) || request.Price <= 0) {
